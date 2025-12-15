@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ford-Fulkerson Algorithm Visualizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+            color: #e2e8f0;
+        }
+
+        .code-font {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(30, 41, 59, 0.3);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 2px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+
+        .node-circle {
+            transition: filter 0.3s ease;
+            cursor: pointer;
+        }
+
+        .node-circle:hover {
+            filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.6));
+        }
+
+        .highlight-line {
+            background-color: rgba(51, 65, 85, 0.8);
+            border-left: 3px solid #38bdf8;
+        }
+    </style>
+</head>
+
+<body class="h-screen overflow-hidden">
+    <div class="h-full flex flex-col p-3 gap-3">
+        <!-- Header -->
+        <header class="glass-panel rounded-lg px-4 py-2 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <a href="index.html"
+                    class="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-xs">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    <span>Back</span>
+                </a>
+                <div class="w-px h-6 bg-slate-600"></div>
+                <div class="flex items-center gap-2">
+                    <div class="bg-blue-600 p-1.5 rounded-md">
+                        <i class="fa-solid fa-network-wired text-white text-xs"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-sm font-bold text-white">Ford-Fulkerson Visualizer</h1>
+                        <p class="text-[10px] text-slate-400">Edmonds-Karp Implementation</p>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-3 text-[10px]">
+                    <div class="flex items-center gap-1">
+                        <span class="w-2 h-2 rounded-full bg-slate-500"></span>
+                        <span class="text-slate-400">Capacity</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                        <span class="text-slate-400">Flow</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                        <span class="text-slate-400">Path</span>
+                    </div>
+                </div>
+                <div class="w-px h-6 bg-slate-600"></div>
+                <div class="text-right">
+                    <span class="text-[10px] text-slate-400 uppercase tracking-wider">Max Flow</span>
+                    <span id="max-flow-display" class="text-lg font-bold text-green-400 font-mono ml-2">0</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-1 min-h-0 grid grid-cols-12 gap-3">
+            <!-- Visualization Panel -->
+            <section class="col-span-8 glass-panel rounded-lg flex flex-col min-h-0">
+                <!-- Canvas -->
+                <div id="canvas-container" class="flex-1 min-h-0 relative">
+                    <svg id="graph-svg" class="w-full h-full block">
+                        <defs>
+                            <marker id="arrow-head-default" markerWidth="8" markerHeight="6" refX="24" refY="3"
+                                orient="auto">
+                                <polygon points="0 0, 8 3, 0 6" fill="#475569" />
+                            </marker>
+                            <marker id="arrow-head-active" markerWidth="8" markerHeight="6" refX="24" refY="3"
+                                orient="auto">
+                                <polygon points="0 0, 8 3, 0 6" fill="#f59e0b" />
+                            </marker>
+                        </defs>
+                        <g id="edges-layer"></g>
+                        <g id="nodes-layer"></g>
+                    </svg>
+                    <div id="action-tooltip"
+                        class="absolute top-2 left-1/2 transform -translate-x-1/2 glass-panel px-3 py-1 rounded-full text-[10px] text-white opacity-0 transition-opacity duration-300">
+                        Initializing...
+                    </div>
+                </div>
+
+                <!-- Controls -->
+                <div class="glass-panel border-t border-slate-700/50 px-4 py-2 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <button id="btn-reset" class="p-1.5 text-slate-400 hover:text-white transition-colors"
+                            title="Reset">
+                            <i class="fa-solid fa-rotate-left text-xs"></i>
+                        </button>
+                        <button id="btn-prev"
+                            class="w-7 h-7 rounded-full bg-slate-700 text-white hover:bg-slate-600 flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="fa-solid fa-backward-step text-[10px]"></i>
+                        </button>
+                        <button id="btn-play"
+                            class="w-9 h-9 rounded-full bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-500/30 flex items-center justify-center transition-all">
+                            <i class="fa-solid fa-play text-xs ml-0.5"></i>
+                        </button>
+                        <button id="btn-next"
+                            class="w-7 h-7 rounded-full bg-slate-700 text-white hover:bg-slate-600 flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="fa-solid fa-forward-step text-[10px]"></i>
+                        </button>
+                    </div>
+                    <div class="flex items-center gap-2 w-32">
+                        <span class="text-[10px] text-slate-400">Speed</span>
+                        <input type="range" id="speed-slider" min="1" max="5" value="3"
+                            class="flex-1 h-1 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-blue-500">
+                        <span id="speed-label" class="text-[10px] text-slate-400 w-4">3x</span>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-[10px] text-slate-400">Step </span>
+                        <span class="font-mono text-xs font-bold"><span id="current-step">0</span>/<span
+                                id="total-steps">0</span></span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sidebar -->
+            <aside class="col-span-4 flex flex-col gap-3 min-h-0">
+                <!-- Pseudocode Panel -->
+                <div class="glass-panel rounded-lg flex flex-col flex-1 min-h-0">
+                    <div class="px-3 py-2 border-b border-slate-700/50 flex justify-between items-center">
+                        <h3 class="font-semibold text-xs text-slate-300">Pseudocode</h3>
+                        <span class="text-[9px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded">Edmonds-Karp</span>
+                    </div>
+                    <div class="flex-1 min-h-0 overflow-y-auto p-2 code-font text-[10px] text-slate-400 leading-5"
+                        id="code-panel">
+                        <div id="line-1" class="pl-1 rounded">function FordFulkerson(G, s, t):</div>
+                        <div id="line-2" class="pl-4 rounded">max_flow = 0</div>
+                        <div id="line-3" class="pl-4 rounded">while (path = bfs(G, s, t)) exists:</div>
+                        <div id="line-4" class="pl-6 rounded">min_cap = infinity</div>
+                        <div id="line-5" class="pl-6 rounded"># Find bottleneck</div>
+                        <div id="line-6" class="pl-6 rounded">for (u, v) in path:</div>
+                        <div id="line-7" class="pl-8 rounded">min_cap = min(min_cap, cap(u,v)-flow(u,v))</div>
+                        <div id="line-8" class="pl-6 rounded"># Augment flow</div>
+                        <div id="line-9" class="pl-6 rounded">for (u, v) in path:</div>
+                        <div id="line-10" class="pl-8 rounded">flow(u, v) += min_cap</div>
+                        <div id="line-11" class="pl-8 rounded">flow(v, u) -= min_cap</div>
+                        <div id="line-12" class="pl-6 rounded">max_flow += min_cap</div>
+                        <div id="line-13" class="pl-4 rounded">return max_flow</div>
+                    </div>
+                </div>
+
+                <!-- Execution Log -->
+                <div class="glass-panel rounded-lg flex flex-col flex-1 min-h-0">
+                    <div class="px-3 py-2 border-b border-slate-700/50">
+                        <h3 class="font-semibold text-xs text-slate-300">Execution Log</h3>
+                    </div>
+                    <div id="log-container" class="flex-1 min-h-0 overflow-y-auto p-2 space-y-1 font-mono text-[10px]">
+                        <div class="text-slate-500 italic">Ready to start...</div>
+                    </div>
+                </div>
+
+                <!-- Complexity -->
+                <div class="glass-panel rounded-lg px-3 py-2">
+                    <div class="grid grid-cols-2 gap-2 text-[10px]">
+                        <div>
+                            <span class="text-slate-500">Time</span>
+                            <span class="text-blue-400 font-mono ml-1">O(V·E²)</span>
+                        </div>
+                        <div>
+                            <span class="text-slate-500">Space</span>
+                            <span class="text-blue-400 font-mono ml-1">O(V+E)</span>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <script>
+        // --- Graph Data ---
+        const NODES = {
+            'S': { x: 10, y: 50, label: 'Source', type: 'source' },
+            'A': { x: 35, y: 20, label: 'A', type: 'node' },
+            'B': { x: 35, y: 80, label: 'B', type: 'node' },
+            'C': { x: 65, y: 20, label: 'C', type: 'node' },
+            'D': { x: 65, y: 80, label: 'D', type: 'node' },
+            'T': { x: 90, y: 50, label: 'Sink', type: 'sink' }
+        };
+
+        const INITIAL_EDGES = [
+            { u: 'S', v: 'A', cap: 10 },
+            { u: 'S', v: 'B', cap: 10 },
+            { u: 'A', v: 'B', cap: 2 },
+            { u: 'A', v: 'C', cap: 4 },
+            { u: 'A', v: 'D', cap: 8 },
+            { u: 'B', v: 'D', cap: 9 },
+            { u: 'D', v: 'C', cap: 6 },
+            { u: 'C', v: 'T', cap: 10 },
+            { u: 'D', v: 'T', cap: 10 }
+        ];
+
+        // --- Visualization Engine ---
+        class GraphVisualizer {
+            constructor(svgId) {
+                this.svg = document.getElementById(svgId);
+                this.edgesLayer = document.getElementById('edges-layer');
+                this.nodesLayer = document.getElementById('nodes-layer');
+                this.width = this.svg.clientWidth;
+                this.height = this.svg.clientHeight;
+                this.domNodes = {};
+                this.domEdges = {};
+                window.addEventListener('resize', () => this.resize());
+                this.init();
+            }
+
+            resize() {
+                this.width = this.svg.clientWidth;
+                this.height = this.svg.clientHeight;
+                this.init();
+            }
+
+            getPos(nodeKey) {
+                const n = NODES[nodeKey];
+                return { x: (n.x / 100) * this.width, y: (n.y / 100) * this.height };
+            }
+
+            init() {
+                this.edgesLayer.innerHTML = '';
+                this.nodesLayer.innerHTML = '';
+                INITIAL_EDGES.forEach(edge => this.createEdgeElement(edge.u, edge.v, edge.cap));
+                Object.keys(NODES).forEach(key => this.createNodeElement(key));
+            }
+
+            createNodeElement(key) {
+                const pos = this.getPos(key);
+                const data = NODES[key];
+                const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                g.setAttribute("transform", `translate(${pos.x}, ${pos.y})`);
+                g.setAttribute("id", `node-${key}`);
+
+                const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                circle.setAttribute("r", 16);
+                let fill = "#1e293b", stroke = "#94a3b8";
+                if (data.type === 'source') { stroke = "#22c55e"; fill = "#052e16"; }
+                if (data.type === 'sink') { stroke = "#ef4444"; fill = "#450a0a"; }
+                circle.setAttribute("fill", fill);
+                circle.setAttribute("stroke", stroke);
+                circle.setAttribute("stroke-width", "2");
+                circle.classList.add("node-circle");
+
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute("text-anchor", "middle");
+                text.setAttribute("dy", ".3em");
+                text.setAttribute("fill", "#fff");
+                text.setAttribute("font-weight", "bold");
+                text.setAttribute("font-size", "11");
+                text.setAttribute("class", "code-font pointer-events-none");
+                text.textContent = key;
+
+                g.appendChild(circle);
+                g.appendChild(text);
+                this.nodesLayer.appendChild(g);
+                this.domNodes[key] = g;
+            }
+
+            createEdgeElement(u, v, cap) {
+                const start = this.getPos(u);
+                const end = this.getPos(v);
+                const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                g.setAttribute("id", `edge-${u}-${v}`);
+
+                const angle = Math.atan2(end.y - start.y, end.x - start.x);
+                const radius = 20;
+                const x1 = start.x + Math.cos(angle) * radius;
+                const y1 = start.y + Math.sin(angle) * radius;
+                const x2 = end.x - Math.cos(angle) * radius;
+                const y2 = end.y - Math.sin(angle) * radius;
+
+                const bgLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                bgLine.setAttribute("x1", x1); bgLine.setAttribute("y1", y1);
+                bgLine.setAttribute("x2", x2); bgLine.setAttribute("y2", y2);
+                bgLine.setAttribute("stroke", "#334155");
+                bgLine.setAttribute("stroke-width", "5");
+                bgLine.setAttribute("marker-end", "url(#arrow-head-default)");
+
+                const flowLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                flowLine.setAttribute("x1", x1); flowLine.setAttribute("y1", y1);
+                flowLine.setAttribute("x2", x2); flowLine.setAttribute("y2", y2);
+                flowLine.setAttribute("stroke", "#3b82f6");
+                flowLine.setAttribute("stroke-width", "5");
+                flowLine.setAttribute("stroke-dasharray", "1000");
+                flowLine.setAttribute("stroke-dashoffset", "1000");
+                flowLine.setAttribute("id", `flowline-${u}-${v}`);
+
+                const midX = (x1 + x2) / 2;
+                const midY = (y1 + y2) / 2 - 8;
+
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute("x", midX); text.setAttribute("y", midY);
+                text.setAttribute("text-anchor", "middle");
+                text.setAttribute("fill", "#94a3b8");
+                text.setAttribute("font-size", "9");
+                text.setAttribute("class", "code-font");
+                text.setAttribute("id", `text-${u}-${v}`);
+                text.textContent = `0/${cap}`;
+
+                g.appendChild(bgLine);
+                g.appendChild(flowLine);
+                g.appendChild(text);
+                this.edgesLayer.appendChild(g);
+
+                this.domEdges[`${u}-${v}`] = {
+                    group: g, bgLine, flowLine, text,
+                    length: Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2))
+                };
+            }
+
+            resetVisuals() {
+                Object.keys(this.domEdges).forEach(key => {
+                    const el = this.domEdges[key];
+                    gsap.set(el.flowLine, { strokeDashoffset: 1000, stroke: "#3b82f6" });
+                    gsap.set(el.bgLine, { stroke: "#334155", markerEnd: "url(#arrow-head-default)" });
+                    gsap.set(el.text, { fill: "#94a3b8", scale: 1 });
+                });
+                Object.keys(this.domNodes).forEach(key => {
+                    gsap.set(this.domNodes[key].querySelector('circle'), { fillOpacity: 1, strokeWidth: 2 });
+                });
+            }
+
+            highlightPath(pathEdges, color = "#f59e0b") {
+                pathEdges.forEach(edgeStr => {
+                    const el = this.domEdges[edgeStr];
+                    if (el) {
+                        gsap.to(el.bgLine, { stroke: color, markerEnd: "url(#arrow-head-active)", duration: 0.3 });
+                        gsap.fromTo(el.bgLine, { strokeWidth: 5 }, { strokeWidth: 7, yoyo: true, repeat: 1, duration: 0.2 });
+                    }
+                });
+            }
+
+            updateFlow(u, v, currentFlow, capacity, isFull) {
+                const key = `${u}-${v}`;
+                const el = this.domEdges[key];
+                if (!el) return;
+
+                el.text.textContent = `${currentFlow}/${capacity}`;
+                gsap.from(el.text, { scale: 1.4, duration: 0.3, ease: "back.out(1.7)" });
+                if (isFull) gsap.to(el.text, { fill: "#f87171" });
+
+                const percent = currentFlow / capacity;
+                const newOffset = 1000 * (1 - percent);
+                gsap.to(el.flowLine, { strokeDashoffset: newOffset, duration: 0.8, ease: "power2.out" });
+            }
+
+            pulseNode(nodeId, color = "#38bdf8") {
+                const el = this.domNodes[nodeId];
+                if (!el) return;
+                const circle = el.querySelector('circle');
+                gsap.fromTo(circle,
+                    { stroke: color, strokeWidth: 2, scale: 1 },
+                    { strokeWidth: 6, scale: 1.15, duration: 0.3, yoyo: true, repeat: 1 }
+                );
+            }
+        }
+
+        // --- Algorithm Logic ---
+        class Algorithm {
+            constructor() {
+                this.steps = [];
+                this.currentMaxFlow = 0;
+            }
+
+            run() {
+                this.steps = [];
+                let adj = {};
+                Object.keys(NODES).forEach(n => adj[n] = []);
+                let edges = {};
+
+                INITIAL_EDGES.forEach(e => {
+                    adj[e.u].push(e.v);
+                    adj[e.v].push(e.u);
+                    edges[`${e.u}-${e.v}`] = { cap: e.cap, flow: 0 };
+                    edges[`${e.v}-${e.u}`] = { cap: 0, flow: 0 };
+                });
+
+                this.steps.push({
+                    type: 'INIT',
+                    msg: "Graph Initialized. Flow is 0.",
+                    codeLine: 1,
+                    maxFlow: 0,
+                    edgesState: JSON.parse(JSON.stringify(edges))
+                });
+
+                let maxFlow = 0;
+
+                while (true) {
+                    this.steps.push({
+                        type: 'BFS_START',
+                        msg: "Starting BFS to find augmenting path...",
+                        codeLine: 3,
+                        maxFlow: maxFlow
+                    });
+
+                    let parent = {};
+                    let queue = ['S'];
+                    let visited = new Set(['S']);
+                    let pathFound = false;
+
+                    const getResidual = (u, v) => {
+                        if (INITIAL_EDGES.find(e => e.u === u && e.v === v)) {
+                            return edges[`${u}-${v}`].cap - edges[`${u}-${v}`].flow;
+                        }
+                        if (INITIAL_EDGES.find(e => e.u === v && e.v === u)) {
+                            return edges[`${v}-${u}`].flow;
+                        }
+                        return 0;
+                    };
+
+                    while (queue.length > 0) {
+                        let u = queue.shift();
+
+                        this.steps.push({
+                            type: 'VISIT_NODE',
+                            node: u,
+                            msg: `BFS visiting node ${u}`,
+                            codeLine: 3,
+                            maxFlow: maxFlow
+                        });
+
+                        if (u === 'T') {
+                            pathFound = true;
+                            break;
+                        }
+
+                        let neighbors = [];
+                        INITIAL_EDGES.forEach(e => {
+                            if (e.u === u) neighbors.push(e.v);
+                            if (e.v === u) neighbors.push(e.u);
+                        });
+
+                        for (let v of neighbors) {
+                            if (!visited.has(v) && getResidual(u, v) > 0) {
+                                visited.add(v);
+                                parent[v] = u;
+                                queue.push(v);
+                            }
+                        }
+                    }
+
+                    if (!pathFound) {
+                        this.steps.push({
+                            type: 'NO_PATH',
+                            msg: "No more augmenting paths. Algorithm complete.",
+                            codeLine: 13,
+                            maxFlow: maxFlow
+                        });
+                        break;
+                    }
+
+                    let path = [];
+                    let curr = 'T';
+                    while (curr !== 'S') {
+                        path.unshift(curr);
+                        curr = parent[curr];
+                    }
+                    path.unshift('S');
+
+                    this.steps.push({
+                        type: 'PATH_FOUND',
+                        path: path,
+                        msg: `Path found: ${path.join(' → ')}`,
+                        codeLine: 6,
+                        maxFlow: maxFlow
+                    });
+
+                    let bottleneck = Infinity;
+                    for (let i = 0; i < path.length - 1; i++) {
+                        let u = path[i], v = path[i + 1];
+                        bottleneck = Math.min(bottleneck, getResidual(u, v));
+                    }
+
+                    this.steps.push({
+                        type: 'BOTTLENECK',
+                        val: bottleneck,
+                        msg: `Bottleneck capacity: ${bottleneck}`,
+                        codeLine: 7,
+                        maxFlow: maxFlow
+                    });
+
+                    for (let i = 0; i < path.length - 1; i++) {
+                        let u = path[i], v = path[i + 1];
+                        if (INITIAL_EDGES.find(e => e.u === u && e.v === v)) {
+                            edges[`${u}-${v}`].flow += bottleneck;
+                        } else {
+                            edges[`${v}-${u}`].flow -= bottleneck;
+                        }
+                    }
+
+                    maxFlow += bottleneck;
+
+                    this.steps.push({
+                        type: 'UPDATE_FLOW',
+                        edgesState: JSON.parse(JSON.stringify(edges)),
+                        added: bottleneck,
+                        path: path,
+                        msg: `Augmented flow by ${bottleneck}. Total: ${maxFlow}`,
+                        codeLine: 12,
+                        maxFlow: maxFlow
+                    });
+                }
+
+                return this.steps;
+            }
+        }
+
+        // --- Controller ---
+        class Controller {
+            constructor() {
+                this.viz = new GraphVisualizer('graph-svg');
+                this.algo = new Algorithm();
+                this.steps = [];
+                this.currentStepIndex = -1;
+                this.isPlaying = false;
+                this.timer = null;
+                this.speed = 1000;
+
+                this.els = {
+                    btnPlay: document.getElementById('btn-play'),
+                    btnPrev: document.getElementById('btn-prev'),
+                    btnNext: document.getElementById('btn-next'),
+                    btnReset: document.getElementById('btn-reset'),
+                    slider: document.getElementById('speed-slider'),
+                    stepCur: document.getElementById('current-step'),
+                    stepTot: document.getElementById('total-steps'),
+                    maxFlow: document.getElementById('max-flow-display'),
+                    log: document.getElementById('log-container'),
+                    tooltip: document.getElementById('action-tooltip'),
+                    speedLabel: document.getElementById('speed-label')
+                };
+
+                this.init();
+            }
+
+            init() {
+                this.steps = this.algo.run();
+                this.els.stepTot.textContent = this.steps.length - 1;
+
+                this.els.btnPlay.addEventListener('click', () => this.togglePlay());
+                this.els.btnNext.addEventListener('click', () => this.stepForward());
+                this.els.btnPrev.addEventListener('click', () => this.stepBackward());
+                this.els.btnReset.addEventListener('click', () => this.reset());
+
+                this.els.slider.addEventListener('input', (e) => {
+                    const val = parseInt(e.target.value);
+                    const speeds = [2000, 1500, 1000, 500, 200];
+                    this.speed = speeds[val - 1];
+                    this.els.speedLabel.textContent = val + 'x';
+                    if (this.isPlaying) { this.stopTimer(); this.startTimer(); }
+                });
+
+                this.renderStep(0);
+            }
+
+            togglePlay() {
+                this.isPlaying ? this.pause() : this.play();
+            }
+
+            play() {
+                if (this.currentStepIndex >= this.steps.length - 1) return;
+                this.isPlaying = true;
+                this.els.btnPlay.innerHTML = '<i class="fa-solid fa-pause text-xs"></i>';
+                this.els.btnPlay.classList.replace('bg-blue-600', 'bg-amber-500');
+                this.startTimer();
+            }
+
+            pause() {
+                this.isPlaying = false;
+                this.els.btnPlay.innerHTML = '<i class="fa-solid fa-play text-xs ml-0.5"></i>';
+                this.els.btnPlay.classList.replace('bg-amber-500', 'bg-blue-600');
+                this.stopTimer();
+            }
+
+            startTimer() {
+                this.timer = setInterval(() => {
+                    if (this.currentStepIndex < this.steps.length - 1) this.stepForward();
+                    else this.pause();
+                }, this.speed);
+            }
+
+            stopTimer() { clearInterval(this.timer); }
+
+            reset() {
+                this.pause();
+                this.currentStepIndex = -1;
+                this.renderStep(0);
+                this.els.log.innerHTML = '<div class="text-slate-500 italic">Ready to start...</div>';
+            }
+
+            stepForward() {
+                if (this.currentStepIndex < this.steps.length - 1) {
+                    this.currentStepIndex++;
+                    this.renderStep(this.currentStepIndex);
+                }
+            }
+
+            stepBackward() {
+                if (this.currentStepIndex > 0) {
+                    this.currentStepIndex--;
+                    this.renderStep(this.currentStepIndex);
+                }
+            }
+
+            renderStep(index) {
+                if (index < 0) index = 0;
+                const step = this.steps[index];
+                const prevStep = index > 0 ? this.steps[index - 1] : null;
+
+                this.els.stepCur.textContent = index;
+                this.els.maxFlow.textContent = step.maxFlow;
+                this.updateLog(step.msg, step.type);
+                this.highlightCode(step.codeLine);
+                this.showTooltip(step.msg);
+
+                this.els.btnPrev.disabled = index === 0;
+                this.els.btnNext.disabled = index === this.steps.length - 1;
+
+                if (step.type !== 'PATH_FOUND') {
+                    this.viz.resetVisuals();
+                    const edges = step.edgesState || (prevStep ? this.findLastEdgesState(index) : null);
+                    if (edges) this.applyEdgeState(edges);
+                }
+
+                switch (step.type) {
+                    case 'INIT':
+                        this.viz.resetVisuals();
+                        break;
+                    case 'VISIT_NODE':
+                        this.viz.pulseNode(step.node);
+                        break;
+                    case 'PATH_FOUND':
+                        const edgesBefore = this.findLastEdgesState(index);
+                        if (edgesBefore) this.applyEdgeState(edgesBefore);
+                        const pathEdges = [];
+                        for (let i = 0; i < step.path.length - 1; i++) {
+                            let u = step.path[i], v = step.path[i + 1];
+                            if (this.viz.domEdges[`${u}-${v}`]) pathEdges.push(`${u}-${v}`);
+                            else if (this.viz.domEdges[`${v}-${u}`]) pathEdges.push(`${v}-${u}`);
+                        }
+                        this.viz.highlightPath(pathEdges);
+                        break;
+                    case 'UPDATE_FLOW':
+                        this.applyEdgeState(step.edgesState);
+                        break;
+                }
+            }
+
+            findLastEdgesState(currentIndex) {
+                for (let i = currentIndex; i >= 0; i--) {
+                    if (this.steps[i].edgesState) return this.steps[i].edgesState;
+                }
+                return null;
+            }
+
+            applyEdgeState(edges) {
+                Object.keys(edges).forEach(key => {
+                    const data = edges[key];
+                    if (this.viz.domEdges[key]) {
+                        const isFull = data.flow === data.cap;
+                        this.viz.updateFlow(key.split('-')[0], key.split('-')[1], data.flow, data.cap, isFull);
+                    }
+                });
+            }
+
+            updateLog(msg, type) {
+                const lastLog = this.els.log.lastElementChild;
+                if (lastLog && lastLog.innerText.includes(msg)) return;
+
+                const entry = document.createElement('div');
+                entry.className = "border-l-2 pl-2 py-0.5 text-slate-300";
+
+                let borderColor = "border-slate-600";
+                if (type === 'PATH_FOUND') { borderColor = "border-amber-500"; entry.classList.add('text-amber-400'); }
+                else if (type === 'UPDATE_FLOW') { borderColor = "border-blue-500"; entry.classList.add('text-blue-300'); }
+                else if (type === 'NO_PATH') { borderColor = "border-green-500"; entry.classList.add('text-green-400'); }
+
+                entry.classList.add(borderColor);
+                entry.innerText = `[${this.currentStepIndex}] ${msg}`;
+
+                this.els.log.appendChild(entry);
+                this.els.log.scrollTop = this.els.log.scrollHeight;
+            }
+
+            highlightCode(lineNum) {
+                document.querySelectorAll('#code-panel div').forEach(el => {
+                    el.classList.remove('bg-slate-700', 'text-white', 'highlight-line');
+                });
+                if (lineNum) {
+                    const el = document.getElementById(`line-${lineNum}`);
+                    if (el) {
+                        el.classList.add('highlight-line', 'text-white');
+                        el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                    }
+                }
+            }
+
+            showTooltip(text) {
+                const t = this.els.tooltip;
+                t.innerText = text;
+                t.style.opacity = '1';
+                clearTimeout(this.tooltipTimeout);
+                this.tooltipTimeout = setTimeout(() => t.style.opacity = '0', 3000);
+            }
+        }
+
+        window.onload = () => setTimeout(() => new Controller(), 100);
+    </script>
+</body>
+
+</html>

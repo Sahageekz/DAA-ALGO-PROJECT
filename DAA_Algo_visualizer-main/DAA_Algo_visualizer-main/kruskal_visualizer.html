@@ -1,0 +1,616 @@
+<!-- Team Members:- Jeffrey Harris, Abishek Raj, Tridev Karthik, Vishaal -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kruskal's MST Algorithm Visualizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+
+        .pseudocode-line {
+            padding: 2px 6px;
+            border-left: 2px solid transparent;
+            transition: background-color 0.3s, border-left-color 0.3s;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 10px;
+        }
+
+        .pseudocode-line.highlight {
+            background-color: rgba(251, 191, 36, 0.2);
+            border-left-color: #f59e0b;
+            font-weight: bold;
+        }
+
+        .node {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 11px;
+            color: white;
+            position: absolute;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            transition: background-color 0.5s, transform 0.2s;
+        }
+
+        .edge {
+            stroke: #4b5563;
+            stroke-width: 2;
+            transition: stroke 0.5s, stroke-width 0.5s;
+        }
+
+        .scrollable::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .scrollable::-webkit-scrollbar-thumb {
+            background-color: rgba(148, 163, 184, 0.3);
+            border-radius: 2px;
+        }
+
+        .scrollable::-webkit-scrollbar-track {
+            background-color: transparent;
+        }
+    </style>
+</head>
+
+<body class="h-screen overflow-hidden text-slate-200 font-sans">
+    <div class="h-full flex flex-col p-3 gap-3">
+        <!-- Header -->
+        <header class="glass-panel rounded-lg px-4 py-2 flex items-center justify-between flex-shrink-0">
+            <div class="flex items-center gap-3">
+                <a href="index.html" class="text-slate-400 hover:text-white transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                </a>
+                <div>
+                    <h1 class="text-lg font-bold text-white">Kruskal's MST Algorithm</h1>
+                    <p class="text-[10px] text-slate-400">Minimum Spanning Tree Visualization</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4 text-[10px]">
+                <span class="text-slate-400">Time: <span class="text-emerald-400 font-mono">O(E log V)</span></span>
+                <span class="text-slate-400">Space: <span class="text-cyan-400 font-mono">O(V + E)</span></span>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="flex-1 min-h-0 grid grid-cols-12 gap-3">
+            <!-- Visualization Panel (col-span-8) -->
+            <div class="col-span-8 flex flex-col gap-3 min-h-0">
+                <!-- Graph Visualization -->
+                <div class="glass-panel rounded-lg p-3 flex-1 min-h-0 flex flex-col">
+                    <h2 class="text-xs font-semibold text-slate-300 mb-2 flex-shrink-0">Graph Visualization</h2>
+                    <div class="flex-1 min-h-0 relative">
+                        <svg id="graphSvg" class="w-full h-full absolute inset-0"></svg>
+                        <div id="nodesContainer" class="absolute inset-0 pointer-events-none"></div>
+                    </div>
+                </div>
+
+                <!-- Bottom Data Panels -->
+                <div class="flex gap-3 h-32 flex-shrink-0">
+                    <!-- Sorted Edge List -->
+                    <div class="glass-panel rounded-lg p-2 flex-1 flex flex-col min-w-0">
+                        <h3 class="text-[10px] font-semibold text-slate-300 mb-1 flex-shrink-0">Sorted Edge List</h3>
+                        <div id="edgeList" class="flex-1 overflow-y-auto scrollable text-[10px] font-mono"></div>
+                    </div>
+                    <!-- Disjoint Set -->
+                    <div class="glass-panel rounded-lg p-2 flex-1 flex flex-col min-w-0">
+                        <h3 class="text-[10px] font-semibold text-slate-300 mb-1 flex-shrink-0">Disjoint Set
+                            (Union-Find)</h3>
+                        <div id="disjointSet" class="flex-1 overflow-y-auto scrollable text-[10px]"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar (col-span-4) -->
+            <div class="col-span-4 flex flex-col gap-3 min-h-0">
+                <!-- Controls -->
+                <div class="glass-panel rounded-lg p-3 flex-shrink-0">
+                    <div class="flex items-center justify-between mb-2">
+                        <h2 class="text-xs font-semibold text-slate-300">Controls</h2>
+                        <span class="text-[10px] text-slate-400">Step: <span id="stepCounter"
+                                class="text-amber-400 font-mono font-bold">0</span></span>
+                    </div>
+                    <div class="flex gap-2">
+                        <button id="playBtn"
+                            class="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-600 disabled:opacity-50 text-white text-[10px] font-semibold py-1.5 px-2 rounded transition-colors flex items-center justify-center gap-1">
+                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd"
+                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                            Play
+                        </button>
+                        <button id="pauseBtn"
+                            class="flex-1 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-600 disabled:opacity-50 text-white text-[10px] font-semibold py-1.5 px-2 rounded transition-colors flex items-center justify-center gap-1"
+                            disabled>
+                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd"
+                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                            Pause
+                        </button>
+                        <button id="stepBtn"
+                            class="flex-1 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 disabled:opacity-50 text-white text-[10px] font-semibold py-1.5 px-2 rounded transition-colors flex items-center justify-center gap-1"
+                            disabled>
+                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd"
+                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                            Step
+                        </button>
+                        <button id="resetBtn"
+                            class="flex-1 bg-rose-600 hover:bg-rose-500 disabled:bg-slate-600 disabled:opacity-50 text-white text-[10px] font-semibold py-1.5 px-2 rounded transition-colors flex items-center justify-center gap-1">
+                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd"
+                                    d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                            Reset
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step Explanation -->
+                <div class="glass-panel rounded-lg p-3 flex-shrink-0">
+                    <h3 class="text-xs font-semibold text-slate-300 mb-2">Step Explanation</h3>
+                    <p id="stepExplanation"
+                        class="text-[10px] text-slate-400 leading-relaxed h-16 overflow-y-auto scrollable">
+                        Click <span class="text-emerald-400 font-semibold">Play</span> or <span
+                            class="text-blue-400 font-semibold">Step</span> to begin the visualization.
+                    </p>
+                </div>
+
+                <!-- Pseudocode -->
+                <div class="glass-panel rounded-lg p-3 flex-1 min-h-0 flex flex-col">
+                    <h3 class="text-xs font-semibold text-indigo-300 mb-2 flex-shrink-0">Pseudocode</h3>
+                    <div id="pseudocode" class="flex-1 overflow-y-auto scrollable"></div>
+                </div>
+
+                <!-- Legend -->
+                <div class="glass-panel rounded-lg p-2 flex-shrink-0">
+                    <h3 class="text-[10px] font-semibold text-slate-300 mb-1">Legend</h3>
+                    <div class="grid grid-cols-2 gap-1 text-[9px]">
+                        <div class="flex items-center gap-1">
+                            <div class="w-3 h-0.5 bg-slate-500"></div>
+                            <span class="text-slate-400">Normal Edge</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <div class="w-3 h-0.5 bg-blue-500"></div>
+                            <span class="text-slate-400">Current Edge</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <div class="w-3 h-0.5 bg-emerald-500"></div>
+                            <span class="text-slate-400">MST Edge</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <div class="w-3 h-3 rounded-full bg-amber-500"></div>
+                            <span class="text-slate-400">Highlighted Node</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // =================================================================================
+        // Global State & Configuration
+        // =================================================================================
+        const STEP_DELAY = 1000;
+        const EDGE_NORMAL_COLOR = '#4b5563';
+        const EDGE_CURRENT_COLOR = '#3b82f6';
+        const EDGE_MST_COLOR = '#10b981';
+        const NODE_NORMAL_COLOR = '#4f46e5';
+        const NODE_HIGHLIGHT_COLOR = '#f59e0b';
+
+        let animationQueue = [];
+        let isPlaying = false;
+        let stepIndex = 0;
+
+        const initialGraph = {
+            nodes: ['A', 'B', 'C', 'D', 'E', 'F'],
+            edges: [
+                { u: 'A', v: 'B', weight: 7 },
+                { u: 'A', v: 'C', weight: 9 },
+                { u: 'A', v: 'F', weight: 14 },
+                { u: 'B', v: 'C', weight: 10 },
+                { u: 'B', v: 'D', weight: 15 },
+                { u: 'C', v: 'D', weight: 11 },
+                { u: 'C', v: 'F', weight: 2 },
+                { u: 'D', v: 'E', weight: 6 },
+                { u: 'E', v: 'F', weight: 9 },
+            ]
+        };
+
+        const nodePositions = {
+            'A': { x: 15, y: 20 },
+            'B': { x: 35, y: 50 },
+            'C': { x: 50, y: 20 },
+            'D': { x: 70, y: 50 },
+            'E': { x: 85, y: 20 },
+            'F': { x: 50, y: 75 }
+        };
+
+        const kruskalPseudocode = [
+            { line: 'function Kruskal(G):', code: true, explanation: 'Start Kruskal\'s Algorithm on Graph G.' },
+            { line: '  MST = []', code: true, explanation: 'Initialize the Minimum Spanning Tree (MST) list to be empty.' },
+            { line: '  Sort edges by weight', code: true, explanation: 'Sort all edges in the graph by their weight. This is the core step for the Greedy approach.' },
+            { line: '  Init Disjoint Set for vertices', code: true, explanation: 'Create a Disjoint Set (Union-Find) structure where each vertex is in its own set.' },
+            { line: '  for each edge (u,v) in sorted:', code: true, explanation: 'Iterate through the sorted edges, starting with the lightest.' },
+            { line: '    if Find(u) != Find(v):', code: true, explanation: 'Check if u and v are in the same set. If so, adding this edge would create a cycle.' },
+            { line: '      Add (u,v) to MST', code: true, explanation: 'Since the edge does not form a cycle, add it to the MST.' },
+            { line: '      Union(u, v)', code: true, explanation: 'Merge the sets of u and v, indicating they are now connected.' },
+            { line: '  return MST', code: true, explanation: 'Return the completed MST.' }
+        ];
+
+        // =================================================================================
+        // DOM Elements
+        // =================================================================================
+        const els = {
+            stepCounter: document.getElementById('stepCounter'),
+            stepExplanation: document.getElementById('stepExplanation'),
+            pseudocodeContainer: document.getElementById('pseudocode'),
+            edgeListContainer: document.getElementById('edgeList'),
+            disjointSetContainer: document.getElementById('disjointSet'),
+            graphSvg: document.getElementById('graphSvg'),
+            nodesContainer: document.getElementById('nodesContainer'),
+            playBtn: document.getElementById('playBtn'),
+            pauseBtn: document.getElementById('pauseBtn'),
+            stepBtn: document.getElementById('stepBtn'),
+            resetBtn: document.getElementById('resetBtn'),
+        };
+
+        // =================================================================================
+        // Disjoint Set (Union-Find) Implementation
+        // =================================================================================
+        class DisjointSet {
+            constructor(elements) {
+                this.parent = {};
+                elements.forEach(el => this.parent[el] = el);
+            }
+
+            find(i) {
+                if (this.parent[i] === i) return i;
+                this.parent[i] = this.find(this.parent[i]);
+                return this.parent[i];
+            }
+
+            union(i, j) {
+                const rootI = this.find(i);
+                const rootJ = this.find(j);
+                if (rootI !== rootJ) {
+                    this.parent[rootI] = rootJ;
+                    return true;
+                }
+                return false;
+            }
+
+            getState() {
+                return this.parent;
+            }
+        }
+
+        let ds = new DisjointSet(initialGraph.nodes);
+        let sortedEdges = [...initialGraph.edges].sort((a, b) => a.weight - b.weight);
+        let mst = [];
+
+        // =================================================================================
+        // Initialization and Rendering Functions
+        // =================================================================================
+        function getAbsPos(nodeName) {
+            const pos = nodePositions[nodeName];
+            const svgRect = els.graphSvg.getBoundingClientRect();
+            return {
+                x: (pos.x / 100) * svgRect.width,
+                y: (pos.y / 100) * svgRect.height,
+            };
+        }
+
+        function renderGraph() {
+            els.graphSvg.innerHTML = '';
+            els.nodesContainer.innerHTML = '';
+
+            initialGraph.edges.forEach(edge => {
+                const posU = getAbsPos(edge.u);
+                const posV = getAbsPos(edge.v);
+
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', posU.x);
+                line.setAttribute('y1', posU.y);
+                line.setAttribute('x2', posV.x);
+                line.setAttribute('y2', posV.y);
+                line.setAttribute('id', `edge-${edge.u}-${edge.v}`);
+                line.classList.add('edge');
+                line.style.stroke = EDGE_NORMAL_COLOR;
+                els.graphSvg.appendChild(line);
+
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                const midX = (posU.x + posV.x) / 2;
+                const midY = (posU.y + posV.y) / 2;
+                text.setAttribute('x', midX);
+                text.setAttribute('y', midY - 4);
+                text.setAttribute('text-anchor', 'middle');
+                text.setAttribute('font-size', '10');
+                text.setAttribute('fill', '#94a3b8');
+                text.setAttribute('id', `weight-${edge.u}-${edge.v}`);
+                text.textContent = edge.weight;
+                els.graphSvg.appendChild(text);
+            });
+
+            initialGraph.nodes.forEach(nodeName => {
+                const pos = getAbsPos(nodeName);
+                const nodeEl = document.createElement('div');
+                nodeEl.id = `node-${nodeName}`;
+                nodeEl.classList.add('node', 'pointer-events-auto');
+                nodeEl.style.backgroundColor = NODE_NORMAL_COLOR;
+                nodeEl.style.left = `${pos.x - 14}px`;
+                nodeEl.style.top = `${pos.y - 14}px`;
+                nodeEl.textContent = nodeName;
+                els.nodesContainer.appendChild(nodeEl);
+            });
+
+            window.addEventListener('resize', renderGraph);
+        }
+
+        function renderPseudocode() {
+            els.pseudocodeContainer.innerHTML = kruskalPseudocode.map((step, index) =>
+                `<div id="code-line-${index}" class="pseudocode-line text-slate-300">
+                    <span class="mr-1 text-indigo-400">${index}:</span>${step.line}
+                </div>`
+            ).join('');
+        }
+
+        function updateDisjointSet() {
+            const parentMap = ds.getState();
+            let sets = {};
+            initialGraph.nodes.forEach(node => {
+                const root = ds.find(node);
+                if (!sets[root]) sets[root] = [];
+                sets[root].push(node);
+            });
+
+            const html = Object.keys(sets).map(root => `
+                <div class="mb-1 p-1.5 bg-indigo-900/30 border border-indigo-500/20 rounded">
+                    <span class="text-indigo-300 font-semibold">Root ${root}:</span>
+                    <span class="text-slate-300">${sets[root].join(', ')}</span>
+                </div>
+            `).join('');
+
+            els.disjointSetContainer.innerHTML = html || '<p class="text-slate-500 italic">Not initialized</p>';
+        }
+
+        function updateEdgeList(currentIndex = -1) {
+            const html = sortedEdges.map((edge, index) => {
+                let statusClass = 'bg-slate-700/30 text-slate-400';
+                let statusIcon = '';
+
+                const inMST = mst.some(e => (e.u === edge.u && e.v === edge.v) || (e.u === edge.v && e.v === edge.u));
+
+                if (inMST) {
+                    statusClass = 'bg-emerald-900/30 text-emerald-300 border-emerald-500/30';
+                    statusIcon = '✓';
+                } else if (index === currentIndex) {
+                    statusClass = 'bg-blue-900/30 text-blue-300 border-blue-500/30';
+                    statusIcon = '→';
+                }
+
+                return `
+                    <div class="flex justify-between items-center py-0.5 px-1.5 mb-0.5 rounded border border-transparent ${statusClass}">
+                        <span>${statusIcon} (${edge.u},${edge.v})</span>
+                        <span>w:${edge.weight}</span>
+                    </div>
+                `;
+            }).join('');
+
+            els.edgeListContainer.innerHTML = html;
+
+            if (currentIndex !== -1) {
+                const currentEl = els.edgeListContainer.children[currentIndex];
+                if (currentEl) currentEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
+        // =================================================================================
+        // Algorithm Logic & Animation Timeline Builder
+        // =================================================================================
+        function buildAnimationQueue() {
+            const queue = [];
+            const V = initialGraph.nodes.length;
+            const E = sortedEdges.length;
+            let currentMSTCount = 0;
+
+            const addStep = (lineIndex, explanation, animationFunc) => {
+                queue.push({
+                    lineIndex: lineIndex,
+                    explanation: explanation,
+                    timeline: animationFunc
+                });
+            };
+
+            addStep(1, kruskalPseudocode[1].explanation, () =>
+                gsap.timeline().add(() => mst = [])
+            );
+            addStep(2, kruskalPseudocode[2].explanation, () =>
+                gsap.timeline().add(() => updateEdgeList(-1))
+            );
+            addStep(3, kruskalPseudocode[3].explanation, () => {
+                ds = new DisjointSet(initialGraph.nodes);
+                return gsap.timeline().add(() => updateDisjointSet());
+            });
+
+            for (let i = 0; i < E; i++) {
+                const edge = sortedEdges[i];
+                const edgeId = `#edge-${edge.u}-${edge.v}`;
+                const weightId = `#weight-${edge.u}-${edge.v}`;
+                const [u, v] = [edge.u, edge.v];
+
+                if (currentMSTCount === V - 1) break;
+
+                addStep(4, `Processing edge (${u}, ${v}) with weight ${edge.weight}.`, () =>
+                    gsap.timeline()
+                        .to(edgeId, { stroke: EDGE_CURRENT_COLOR, strokeWidth: 4, duration: 0.3 })
+                        .to(weightId, { fill: EDGE_CURRENT_COLOR, duration: 0.3 }, "<")
+                        .add(() => updateEdgeList(i))
+                );
+
+                const isCycle = ds.find(u) === ds.find(v);
+                const explanation = isCycle
+                    ? `Find(${u}) = Find(${v}) = ${ds.find(u)}. Adding would create cycle. SKIP.`
+                    : `Find(${u}) = ${ds.find(u)}, Find(${v}) = ${ds.find(v)}. Different sets - safe to add.`;
+
+                addStep(5, explanation, () =>
+                    gsap.timeline()
+                        .to(`#node-${u}`, { backgroundColor: NODE_HIGHLIGHT_COLOR, duration: 0.3 })
+                        .to(`#node-${v}`, { backgroundColor: NODE_HIGHLIGHT_COLOR, duration: 0.3 }, "<")
+                );
+
+                if (isCycle) {
+                    addStep(5, explanation, () =>
+                        gsap.timeline()
+                            .to(edgeId, { stroke: EDGE_NORMAL_COLOR, strokeWidth: 2, duration: 0.5 })
+                            .to(weightId, { fill: '#94a3b8', duration: 0.5 }, "<")
+                            .to(`#node-${u}`, { backgroundColor: NODE_NORMAL_COLOR, duration: 0.5 }, "<")
+                            .to(`#node-${v}`, { backgroundColor: NODE_NORMAL_COLOR, duration: 0.5 }, "<")
+                    );
+                } else {
+                    addStep(6, `Adding edge (${u}, ${v}) to MST.`, () =>
+                        gsap.timeline()
+                            .to(edgeId, { stroke: EDGE_MST_COLOR, strokeWidth: 4, duration: 0.5, strokeDasharray: 0 })
+                            .to(weightId, { fill: EDGE_MST_COLOR, duration: 0.5 }, "<")
+                            .add(() => {
+                                mst.push(edge);
+                                currentMSTCount++;
+                                updateEdgeList(i);
+                            })
+                    );
+
+                    addStep(7, `Union(${u}, ${v}) - merging sets.`, () => {
+                        ds.union(u, v);
+                        return gsap.timeline()
+                            .add(() => updateDisjointSet())
+                            .to(`#node-${u}`, { backgroundColor: NODE_NORMAL_COLOR, duration: 0.5 })
+                            .to(`#node-${v}`, { backgroundColor: NODE_NORMAL_COLOR, duration: 0.5 }, "<");
+                    });
+                }
+            }
+
+            addStep(8, `MST complete! Total weight: ${mst.reduce((sum, e) => sum + e.weight, 0)}.`, () =>
+                gsap.timeline().add(() => {
+                    isPlaying = false;
+                    updateControls();
+                })
+            );
+
+            return queue;
+        }
+
+        // =================================================================================
+        // Execution Control Functions
+        // =================================================================================
+        function executeStep() {
+            if (stepIndex >= animationQueue.length) {
+                isPlaying = false;
+                updateControls();
+                return;
+            }
+
+            const step = animationQueue[stepIndex];
+
+            els.stepCounter.textContent = stepIndex + 1;
+            els.stepExplanation.innerHTML = step.explanation;
+
+            document.querySelectorAll('.pseudocode-line').forEach(el => el.classList.remove('highlight'));
+            const currentCodeLine = document.getElementById(`code-line-${step.lineIndex}`);
+            if (currentCodeLine) {
+                currentCodeLine.classList.add('highlight');
+                currentCodeLine.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+
+            const timeline = step.timeline();
+
+            timeline.then(() => {
+                stepIndex++;
+                if (isPlaying) {
+                    setTimeout(executeStep, STEP_DELAY);
+                } else {
+                    updateControls();
+                }
+            });
+        }
+
+        function updateControls() {
+            const finished = stepIndex >= animationQueue.length;
+            els.playBtn.disabled = isPlaying || finished;
+            els.pauseBtn.disabled = !isPlaying || finished;
+            els.stepBtn.disabled = isPlaying || finished;
+            els.resetBtn.disabled = isPlaying;
+        }
+
+        function resetVisualization() {
+            isPlaying = false;
+            stepIndex = 0;
+            mst = [];
+            ds = new DisjointSet(initialGraph.nodes);
+            animationQueue = buildAnimationQueue();
+            renderGraph();
+            updateDisjointSet();
+            updateEdgeList(-1);
+            els.stepCounter.textContent = '0';
+            els.stepExplanation.innerHTML = 'Click <span class="text-emerald-400 font-semibold">Play</span> or <span class="text-blue-400 font-semibold">Step</span> to begin.';
+            document.querySelectorAll('.pseudocode-line').forEach(el => el.classList.remove('highlight'));
+            updateControls();
+        }
+
+        // =================================================================================
+        // Event Listeners and Initialization
+        // =================================================================================
+        els.playBtn.addEventListener('click', () => {
+            if (stepIndex >= animationQueue.length) return;
+            isPlaying = true;
+            updateControls();
+            executeStep();
+        });
+
+        els.pauseBtn.addEventListener('click', () => {
+            isPlaying = false;
+            updateControls();
+        });
+
+        els.stepBtn.addEventListener('click', () => {
+            if (stepIndex >= animationQueue.length) return;
+            isPlaying = false;
+            updateControls();
+            executeStep();
+        });
+
+        els.resetBtn.addEventListener('click', resetVisualization);
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderPseudocode();
+            setTimeout(resetVisualization, 100);
+        });
+    </script>
+</body>
+
+</html>

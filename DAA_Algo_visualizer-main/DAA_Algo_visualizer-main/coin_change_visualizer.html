@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coin Change Algorithm Visualizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+
+        .code-line {
+            padding: 2px 8px;
+            margin: 1px 0;
+            border-radius: 3px;
+            transition: all 0.3s ease;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 10px;
+            line-height: 1.4;
+        }
+
+        .code-line.active {
+            background: rgba(251, 191, 36, 0.2);
+            border-left: 3px solid #fbbf24;
+            transform: translateX(2px);
+        }
+
+        .coin {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+            color: #78350f;
+            font-weight: bold;
+            font-size: 12px;
+            box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
+            border: 2px solid #fcd34d;
+        }
+
+        .dp-cell {
+            min-width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            border-radius: 4px;
+            background: rgba(30, 41, 59, 0.8);
+            font-weight: 600;
+            font-size: 11px;
+            color: #e2e8f0;
+            transition: all 0.3s ease;
+        }
+
+        .dp-cell.highlight {
+            background: rgba(59, 130, 246, 0.4);
+            border-color: #3b82f6;
+            transform: scale(1.1);
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+        }
+
+        .control-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .keyword {
+            color: #c084fc;
+            font-weight: 600;
+        }
+
+        .function {
+            color: #f472b6;
+            font-weight: 600;
+        }
+
+        .number {
+            color: #4ade80;
+        }
+
+        .comment {
+            color: #64748b;
+            font-style: italic;
+        }
+
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(30, 41, 59, 0.3);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.3);
+            border-radius: 2px;
+        }
+    </style>
+</head>
+
+<body class="h-screen overflow-hidden text-slate-200">
+    <div class="h-full flex flex-col p-3">
+        <!-- Header -->
+        <div class="glass-panel rounded-lg p-2 mb-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <a href="index.html"
+                    class="text-slate-400 hover:text-white transition-colors text-xs flex items-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                    Back
+                </a>
+                <div class="w-px h-4 bg-slate-600"></div>
+                <h1 class="text-base font-bold text-white">Coin Change Problem Visualizer</h1>
+            </div>
+            <span class="text-[10px] text-slate-500">Dynamic Programming</span>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 min-h-0 grid grid-cols-12 gap-3">
+            <!-- Visualization Area (8 columns) -->
+            <div class="col-span-8 flex flex-col gap-3 min-h-0">
+                <!-- Coins & Explanation Row -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="glass-panel rounded-lg p-3">
+                        <h3 class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Available
+                            Coins</h3>
+                        <div id="coinsContainer" class="flex gap-2 flex-wrap"></div>
+                    </div>
+                    <div class="glass-panel rounded-lg p-3">
+                        <h3 class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Current Step
+                        </h3>
+                        <div id="explanation" class="text-xs text-slate-300 leading-relaxed">
+                            Configure parameters and click "Start" to begin.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DP Table Visualization -->
+                <div class="glass-panel rounded-lg p-3 flex-1 min-h-0 flex flex-col">
+                    <h3 class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">DP Table
+                        Visualization</h3>
+                    <div id="dpTable" class="flex-1 overflow-auto"></div>
+                </div>
+
+                <!-- Solution & Stats Row -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="glass-panel rounded-lg p-3">
+                        <h3 class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Solution</h3>
+                        <div id="solutionDisplay" class="text-xs text-slate-300">
+                            Solution will appear after execution.
+                        </div>
+                    </div>
+                    <div class="glass-panel rounded-lg p-3">
+                        <div class="grid grid-cols-4 gap-2">
+                            <div class="text-center">
+                                <div class="text-[10px] text-slate-500 mb-1">Step</div>
+                                <div id="stepCount" class="text-lg font-bold text-blue-400">0</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-[10px] text-slate-500 mb-1">Time</div>
+                                <div id="timeComplexity" class="text-xs font-bold text-purple-400">-</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-[10px] text-slate-500 mb-1">Space</div>
+                                <div id="spaceComplexity" class="text-xs font-bold text-green-400">-</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-[10px] text-slate-500 mb-1">Result</div>
+                                <div id="result" class="text-lg font-bold text-amber-400">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar (4 columns) -->
+            <div class="col-span-4 flex flex-col gap-3 min-h-0">
+                <!-- Configuration -->
+                <div class="glass-panel rounded-lg p-3">
+                    <h3 class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Configuration
+                    </h3>
+                    <div class="space-y-2">
+                        <div>
+                            <label class="text-[10px] text-slate-400 mb-1 block">Target Amount</label>
+                            <input type="number" id="amountInput" value="11" min="1" max="50"
+                                class="w-full px-2 py-1.5 bg-slate-800/50 border border-slate-600/50 rounded text-xs text-white focus:border-purple-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-slate-400 mb-1 block">Coins (comma-separated)</label>
+                            <input type="text" id="coinsInput" value="1, 2, 5"
+                                class="w-full px-2 py-1.5 bg-slate-800/50 border border-slate-600/50 rounded text-xs text-white focus:border-purple-500 focus:outline-none">
+                        </div>
+                        <div class="flex gap-2 pt-1">
+                            <button id="startBtn"
+                                class="control-btn flex-1 bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-1.5 rounded text-xs font-medium transition-colors">
+                                ▶ Start
+                            </button>
+                            <button id="resetBtn"
+                                class="control-btn flex-1 bg-slate-600 hover:bg-slate-500 text-white px-2 py-1.5 rounded text-xs font-medium transition-colors">
+                                ↻ Reset
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Playback Controls -->
+                <div class="glass-panel rounded-lg p-3">
+                    <h3 class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Playback</h3>
+                    <div class="flex gap-2 mb-2">
+                        <button id="playBtn"
+                            class="control-btn flex-1 bg-blue-600 hover:bg-blue-500 text-white px-2 py-1.5 rounded text-xs font-medium transition-colors"
+                            disabled>
+                            ▶ Play
+                        </button>
+                        <button id="pauseBtn"
+                            class="control-btn flex-1 bg-amber-600 hover:bg-amber-500 text-white px-2 py-1.5 rounded text-xs font-medium transition-colors"
+                            disabled>
+                            ⏸ Pause
+                        </button>
+                        <button id="stepBtn"
+                            class="control-btn flex-1 bg-purple-600 hover:bg-purple-500 text-white px-2 py-1.5 rounded text-xs font-medium transition-colors"
+                            disabled>
+                            ⏭ Step
+                        </button>
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-slate-400 mb-1 block">Speed: <span
+                                id="speedValue">1x</span></label>
+                        <input type="range" id="speedSlider" min="0.5" max="3" step="0.5" value="1"
+                            class="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                </div>
+
+                <!-- Algorithm Code -->
+                <div class="glass-panel rounded-lg p-3 flex-1 min-h-0 flex flex-col">
+                    <h3 class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Algorithm</h3>
+                    <div id="codeDisplay" class="flex-1 overflow-auto bg-slate-900/50 rounded p-2"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let state = {
+            amount: 11,
+            coins: [1, 2, 5],
+            steps: [],
+            currentStep: 0,
+            isPlaying: false,
+            speed: 1,
+            result: null
+        };
+
+        let animationInterval = null;
+
+        const codeTemplate = [
+            '<span class="keyword">function</span> <span class="function">coinChange</span>(coins, amount) {',
+            '    <span class="keyword">let</span> dp = <span class="keyword">new</span> Array(amount + <span class="number">1</span>).fill(Infinity);',
+            '    dp[<span class="number">0</span>] = <span class="number">0</span>; <span class="comment">// Base case</span>',
+            '    ',
+            '    <span class="keyword">for</span> (<span class="keyword">let</span> i = <span class="number">1</span>; i <= amount; i++) {',
+            '        <span class="keyword">for</span> (<span class="keyword">let</span> coin <span class="keyword">of</span> coins) {',
+            '            <span class="keyword">if</span> (coin <= i) {',
+            '                dp[i] = Math.min(dp[i], dp[i - coin] + <span class="number">1</span>);',
+            '            }',
+            '        }',
+            '    }',
+            '    <span class="keyword">return</span> dp[amount] === Infinity ? <span class="number">-1</span> : dp[amount];',
+            '}'
+        ];
+
+        function generateSteps(coins, amount) {
+            const steps = [];
+            const dp = new Array(amount + 1).fill(Infinity);
+            dp[0] = 0;
+
+            steps.push({
+                line: 1,
+                explanation: `Initialize DP array of size ${amount + 1} with Infinity`,
+                dpState: [...dp],
+                highlight: []
+            });
+
+            steps.push({
+                line: 2,
+                explanation: `Base case: dp[0] = 0 (0 coins for amount 0)`,
+                dpState: [...dp],
+                highlight: [0]
+            });
+
+            for (let i = 1; i <= amount; i++) {
+                steps.push({
+                    line: 4,
+                    explanation: `Processing amount ${i}`,
+                    dpState: [...dp],
+                    highlight: [i],
+                    currentAmount: i
+                });
+
+                for (let coin of coins) {
+                    if (coin <= i) {
+                        const prev = dp[i];
+                        dp[i] = Math.min(dp[i], dp[i - coin] + 1);
+
+                        steps.push({
+                            line: 7,
+                            explanation: `Using coin ${coin}: dp[${i}] = min(${prev === Infinity ? '∞' : prev}, ${dp[i - coin] === Infinity ? '∞' : dp[i - coin]} + 1) = ${dp[i] === Infinity ? '∞' : dp[i]}`,
+                            dpState: [...dp],
+                            highlight: [i, i - coin],
+                            currentCoin: coin
+                        });
+                    }
+                }
+            }
+
+            steps.push({
+                line: 11,
+                explanation: `Result: ${dp[amount] === Infinity ? 'Impossible' : `${dp[amount]} coins`}`,
+                dpState: [...dp],
+                highlight: [amount],
+                result: dp[amount] === Infinity ? -1 : dp[amount]
+            });
+
+            return steps;
+        }
+
+        function displayCode() {
+            const code = codeTemplate.map((line, i) =>
+                `<div class="code-line" data-line="${i}">${line}</div>`
+            ).join('');
+            document.getElementById('codeDisplay').innerHTML = code;
+        }
+
+        function highlightLine(lineNum) {
+            document.querySelectorAll('.code-line').forEach(el => el.classList.remove('active'));
+            if (lineNum >= 0) {
+                const line = document.querySelector(`[data-line="${lineNum}"]`);
+                if (line) line.classList.add('active');
+            }
+        }
+
+        function displayCoins() {
+            const html = state.coins.map(coin =>
+                `<div class="coin" data-coin="${coin}">${coin}</div>`
+            ).join('');
+            document.getElementById('coinsContainer').innerHTML = html;
+
+            gsap.from('.coin', {
+                scale: 0,
+                rotation: 360,
+                duration: 0.5,
+                stagger: 0.1,
+                ease: 'back.out(1.7)'
+            });
+        }
+
+        function displayDPTable(dpState, highlights, currentCoin) {
+            const html = `
+                <div class="flex flex-wrap gap-1.5">
+                    ${dpState.map((val, i) => `
+                        <div class="text-center">
+                            <div class="text-[9px] text-slate-500 mb-0.5">i=${i}</div>
+                            <div class="dp-cell ${highlights.includes(i) ? 'highlight' : ''}" data-cell="${i}">
+                                ${val === Infinity ? '∞' : val}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            document.getElementById('dpTable').innerHTML = html;
+
+            if (highlights.length > 0) {
+                highlights.forEach(idx => {
+                    const cell = document.querySelector(`[data-cell="${idx}"]`);
+                    if (cell) {
+                        gsap.fromTo(cell,
+                            { scale: 1 },
+                            { scale: 1.15, duration: 0.3, yoyo: true, repeat: 1 }
+                        );
+                    }
+                });
+            }
+
+            document.querySelectorAll('.coin').forEach(el => {
+                el.style.transform = 'scale(1)';
+            });
+
+            if (currentCoin) {
+                const coinEl = document.querySelector(`[data-coin="${currentCoin}"]`);
+                if (coinEl) {
+                    gsap.to(coinEl, { scale: 1.2, duration: 0.3 });
+                }
+            }
+        }
+
+        function executeStep(step) {
+            highlightLine(step.line);
+            document.getElementById('explanation').textContent = step.explanation;
+            displayDPTable(step.dpState, step.highlight || [], step.currentCoin);
+
+            if (step.result !== undefined) {
+                state.result = step.result;
+                document.getElementById('result').textContent = step.result === -1 ? 'N/A' : step.result;
+
+                const solutionHTML = step.result !== -1
+                    ? `<div class="bg-emerald-900/30 border border-emerald-500/30 rounded p-2">
+                        <div class="text-sm font-bold text-emerald-400 mb-1">✓ Solution Found!</div>
+                        <div class="text-xs text-emerald-300">Minimum coins: <span class="font-bold">${step.result}</span></div>
+                       </div>`
+                    : `<div class="bg-red-900/30 border border-red-500/30 rounded p-2">
+                        <div class="text-sm font-bold text-red-400 mb-1">✗ No Solution</div>
+                        <div class="text-xs text-red-300">Cannot make exact change</div>
+                       </div>`;
+                document.getElementById('solutionDisplay').innerHTML = solutionHTML;
+            }
+        }
+
+        function runAnimation() {
+            if (state.isPlaying && state.currentStep < state.steps.length) {
+                executeStep(state.steps[state.currentStep]);
+                state.currentStep++;
+                document.getElementById('stepCount').textContent = state.currentStep;
+
+                if (state.currentStep >= state.steps.length) {
+                    stopPlaying();
+                }
+            }
+        }
+
+        function stopPlaying() {
+            state.isPlaying = false;
+            if (animationInterval) {
+                clearInterval(animationInterval);
+                animationInterval = null;
+            }
+            document.getElementById('playBtn').textContent = '▶ Play';
+        }
+
+        document.getElementById('startBtn').addEventListener('click', () => {
+            state.amount = parseInt(document.getElementById('amountInput').value);
+            state.coins = document.getElementById('coinsInput').value
+                .split(',')
+                .map(s => parseInt(s.trim()))
+                .filter(n => !isNaN(n) && n > 0);
+
+            if (state.coins.length === 0 || state.amount < 1) {
+                alert('Please enter valid coins and amount');
+                return;
+            }
+
+            state.steps = generateSteps(state.coins, state.amount);
+            state.currentStep = 0;
+
+            displayCode();
+            displayCoins();
+
+            document.getElementById('timeComplexity').textContent = 'O(n·m)';
+            document.getElementById('spaceComplexity').textContent = 'O(n)';
+            document.getElementById('stepCount').textContent = '0';
+            document.getElementById('result').textContent = '-';
+            document.getElementById('solutionDisplay').textContent = 'Solution will appear after execution.';
+
+            document.getElementById('playBtn').disabled = false;
+            document.getElementById('pauseBtn').disabled = false;
+            document.getElementById('stepBtn').disabled = false;
+
+            document.getElementById('explanation').textContent = 'Ready! Click Play or Step to begin.';
+        });
+
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            stopPlaying();
+            state.currentStep = 0;
+            state.steps = [];
+
+            document.getElementById('stepCount').textContent = '0';
+            document.getElementById('result').textContent = '-';
+            document.getElementById('timeComplexity').textContent = '-';
+            document.getElementById('spaceComplexity').textContent = '-';
+            document.getElementById('explanation').textContent = 'Configure parameters and click Start.';
+            document.getElementById('solutionDisplay').textContent = 'Solution will appear after execution.';
+            document.getElementById('dpTable').innerHTML = '';
+            document.getElementById('coinsContainer').innerHTML = '';
+            document.getElementById('codeDisplay').innerHTML = '';
+
+            document.getElementById('playBtn').disabled = true;
+            document.getElementById('pauseBtn').disabled = true;
+            document.getElementById('stepBtn').disabled = true;
+        });
+
+        document.getElementById('playBtn').addEventListener('click', () => {
+            if (state.currentStep >= state.steps.length) {
+                state.currentStep = 0;
+            }
+
+            state.isPlaying = !state.isPlaying;
+
+            if (state.isPlaying) {
+                document.getElementById('playBtn').textContent = '⏸ Playing';
+                animationInterval = setInterval(runAnimation, 1000 / state.speed);
+            } else {
+                stopPlaying();
+            }
+        });
+
+        document.getElementById('pauseBtn').addEventListener('click', () => {
+            stopPlaying();
+        });
+
+        document.getElementById('stepBtn').addEventListener('click', () => {
+            if (state.currentStep < state.steps.length) {
+                stopPlaying();
+                executeStep(state.steps[state.currentStep]);
+                state.currentStep++;
+                document.getElementById('stepCount').textContent = state.currentStep;
+            }
+        });
+
+        document.getElementById('speedSlider').addEventListener('input', (e) => {
+            state.speed = parseFloat(e.target.value);
+            document.getElementById('speedValue').textContent = `${state.speed}x`;
+
+            if (state.isPlaying) {
+                clearInterval(animationInterval);
+                animationInterval = setInterval(runAnimation, 1000 / state.speed);
+            }
+        });
+
+        displayCode();
+    </script>
+</body>
+
+</html>
